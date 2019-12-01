@@ -1,4 +1,19 @@
 
-.component-search{
-    
+.search-list {
+    width: 33%;
+    float: left;
+    height: 500px;
+    overflow: scroll;
+}
+
+.recent-search-list {
+    width: 33%;
+    float: right;
+}
+
+.hashtag-list {
+    width: 33%;
+    float: right;
+    height: 500px;
+    overflow: scroll;
 }

@@ -2,10 +2,10 @@ const proxy = require('http-proxy-middleware');
 
 module.exports = function (app) {
     app.use(
-        proxy('/1.1/**', {
+        proxy('/api/**', {
             changeOrigin: true,
             logLevel: 'debug',
-            target: 'https://api.twitter.com/'
+            target: 'http://localhost:3002/'
         })
-    );
+    )
 };

@@ -1,23 +1,39 @@
 import React, { Component } from "react";
 import axios from "axios";
 import './search.css';
-import oauthSignature from 'oauth-signature';
 
 class Search extends Component {
-  // searchAPI = 'https://www.themealdb.com/api/json/v1/1/search.php';
-  searchAPI = 'https://api.twitter.com/1.1/search/tweets.json?oauth_consumer_key=w2USKpLcIw6MEWJfXngli6f8T&oauth_token=179807117-5UDyBQwzTiuhX3v6qPpKmOzsqhZwzRLldtjrnWqS&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1574875580&oauth_nonce=0yUGmC&oauth_version=1.0&oauth_signature=zsoJQYJh1c2Ck0KLiVxgXQTPYtE%3D&result_type=mixed&count=2';
+  DATE_OPTIONS = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
   state = {
     searchValue: '',
     isSearchPerformed: false,
-    meals: []
+    tweets: [],
+    recentSearches: [],
+    accessToken: '',
+    hashTags: {},
+    isLoading: false
   };
+
+  async componentDidMount() {
+    const response = await this.getAccessToken();
+    this.setState({ accessToken: response.data.items })
+  }
+
+  getAccessToken = async () => {
+    return axios('/api/accessToken/', { method: 'GET' })
+  }
 
   onSearchChange = event => {
     this.setState({ searchValue: event.target.value });
   };
 
-  search = () => {
-    this.fetchTweets(this.state.searchValue);
+  search = async () => {
+    const lastSearch = this.state.recentSearches.length ? this.state.recentSearches[this.state.recentSearches.length - 1] : '';
+    if (this.state.searchValue.trim() && lastSearch !== this.state.searchValue) {
+      this.state.recentSearches.push(this.state.searchValue);
+      this.setState({ isLoading: true });
+      await this.fetchTweets(this.state.searchValue);
+    }
   };
 
   clearSearch = () => {
@@ -26,93 +42,96 @@ class Search extends Component {
 
   fetchTweets = async searchInput => {
     const options = {
-      url: `/1.1/search/tweets.json?${this.getQueryParams()}&q=${escape(searchInput)}&result_type=mixed&count=10`,
+      url: `api/tweets?accessToken=${this.state.accessToken}&q=${escape(searchInput)}`,
       method: 'GET',
-      headers: { 'cache-control': 'no-cache' },
     };
 
-    const response = await axios(options);
-
-    debugger;
+    try {
+      const response = await axios(options);
+      const hashTags = this.getRankedHashTags(response.data.items);
+      this.setState({
+        tweets: response.data.items || [],
+        hashTags: hashTags,
+        isSearchPerformed: true,
+        isLoading: false
+      });
+    } catch (error) {
+      this.setState({ tweets: [], isSearchPerformed: true, searchValue: '' });
+    }
   };
 
-  generateOauthSignature = () => {
-    var httpMethod = 'GET',
-      url = 'https://api.twitter.com/1.1/search/tweets.json',
-      parameters = {
-        oauth_consumer_key: process.env.REACT_APP_oauth_consumer_key,
-        oauth_token: process.env.REACT_APP_oauth_token,
-        oauth_nonce: process.env.REACT_APP_oauth_nonce,
-        oauth_timestamp: '1574878855',
-        oauth_signature_method: 'HMAC-SHA1',
-        oauth_version: '1.0'
-      },
-      consumerSecret = process.env.REACT_APP_consumer_secret,
-      tokenSecret = process.env.REACT_APP_token_secret,
-      // generates a RFC 3986 encoded, BASE64 encoded HMAC-SHA1 hash
-      encodedSignature = oauthSignature.generate(httpMethod, url, parameters, consumerSecret, tokenSecret, { encodeSignature: true })
-
-    return 'ss0%2FJowjs9Sfjc1LPLPGkCcdi%2Fs%3D'
-    return encodedSignature;
-  }
-
-  getQueryParams = () => {
-    const queryParams = [
-      'oauth_consumer_key',
-      'oauth_token',
-      'oauth_signature_method',
-      'oauth_timestamp',
-      'oauth_nonce',
-      'oauth_version',
-      // 'result_type',
-      // 'count'
-    ];
-
-    let queryParam = '';
-    queryParams.forEach((param, i) => {
-      queryParam += `${i === 0 ? '' : '&'}${param}=${process.env[`REACT_APP_${param}`]}`
+  getRankedHashTags = items => {
+    let hashtagsList = {};
+    items.map((item) => {
+      if (item.entities.hashtags.length) {
+        item.entities.hashtags.forEach(tag => {
+          hashtagsList[tag.text] = hashtagsList[tag.text] ? hashtagsList[tag.text] + 1 : 1;
+        });
+      }
     });
-
-    return queryParam + `&oauth_signature=${this.generateOauthSignature()}`;
-  }
-
-  fetchMeals = async searchInput => {
-    const searchUrl = `${this.searchAPI}?s=${searchInput}`;
-    // fetch(searchUrl)
-    //   .then(response => {
-    //     return response.json();
-    //   })
-    //   .then(jsonData => {
-    //     this.setState({ meals: jsonData.meals || [], isSearchPerformed: true });
-    //   });
-
-    const res = await axios(searchUrl, { method: 'GET' });
-    this.setState({ meals: res.data.meals || [], isSearchPerformed: true })
+    return hashtagsList;
   };
 
   render() {
     return (
       <div>
-        <h1>Meal Search App</h1>
-        <input
-          name="text"
-          type="text"
-          placeholder="Enter something to search"
-          onChange={event => this.onSearchChange(event)}
-          value={this.state.searchValue}
-        />
-        <button onClick={this.search}>Search</button>
-        <button onClick={this.clearSearch}>Clear Search</button>
-        <div>
-          {this.state.meals.map((meal, index) => (
-            <div key={index}>
-              <h2>{meal.strMeal}</h2>
-              <img src={meal.strMealThumb} />
-            </div>
-          ))}
-        </div>
-        <p>{this.state.meals.length === 0 && this.state.isSearchPerformed === true ? 'No data found' : ''}</p>
-      </div>
+        {
+          this.state.accessToken ?
+            <div>
+              <h1>Tweets Search App</h1>
+              <input
+                name="text"
+                type="text"
+                placeholder="Enter something to search"
+                onChange={event => this.onSearchChange(event)}
+                value={this.state.searchValue}
+              />
+              <button onClick={this.search}>Search</button>
+              <button onClick={this.clearSearch}>Clear Search</button>
+            </div> : 'Loading App...'
+        }
+        {
+          !this.state.isLoading ?
+            <div>{
+              this.state.tweets.length || this.state.isSearchPerformed ?
+                <div className="search-list">
+                  <h2>Search Results</h2>
+                  <ul>
+                    {this.state.tweets.map((tweet, index) => (
+                      <li key={index}>
+                        <h4>{(new Date()).toLocaleDateString('en-US', this.DATE_OPTIONS)}</h4>
+                        <span>{tweet.text}></span>
+                      </li>
+                    ))}
+                    <p>{this.state.tweets.length === 0 && this.state.isSearchPerformed === true ? 'No data found' : ''}</p>
+                  </ul>
+                </div> : null
+            }
+            </div> : 'Searching...'
+        }
+        {
+          this.state.recentSearches.length ?
+            <div className="recent-search-list">
+              <h2>Recent Searches</h2>
+              <ul>
+                {this.state.recentSearches.map((search, index) => (
+                  <li key={index}>{search}</li>
+                ))}
+              </ul>
+            </div> : null
+        }
+        {
+          !this.state.isLoading && Object.keys(this.state.hashTags).length ?
+            <div className="hashtag-list">
+              <h2>Ranked HashTags</h2>
+              <ul>
+                {Object.keys(this.state.hashTags).map((tag, index) => (
+                  <li key={index}>{tag + ': ' + this.state.hashTags[tag]}</li>
+                ))}
+              </ul>
+            </div> : null
+        }
+      </div >
     );
   }
 }
