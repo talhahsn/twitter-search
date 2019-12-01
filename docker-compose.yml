@@ -1,0 +1,20 @@
+version: "2"
+services:
+  frontend:
+    container_name: twitter-search-fe
+    build:
+      context: twitter-search-fe
+    ports:
+      - 3000:3000
+    volumes:
+      - ./twitter-search-fe:/usr/src/app
+    restart: always
+  backend:
+    container_name: twitter-search-be
+    build:
+      context: twitter-search-be
+    ports:
+      - 3001:3001
+    volumes:
+      - ./twitter-search-be:/usr/src/app
+    restart: always

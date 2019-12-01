@@ -3,6 +3,7 @@ import axios from "axios";
 import './search.css';
 
 class Search extends Component {
+  baseURL = 'http://localhost:3001/';
   DATE_OPTIONS = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
   state = {
     searchValue: '',
@@ -20,7 +21,7 @@ class Search extends Component {
   }
 
   getAccessToken = async () => {
-    return axios('/api/accessToken/', { method: 'GET' })
+    return await axios({ url: `${this.baseURL}api/accessToken/`, method: 'GET' })
   }
 
   onSearchChange = event => {
@@ -42,7 +43,7 @@ class Search extends Component {
 
   fetchTweets = async searchInput => {
     const options = {
-      url: `api/tweets?accessToken=${this.state.accessToken}&q=${escape(searchInput)}`,
+      url: `${this.baseURL}api/tweets?accessToken=${this.state.accessToken}&q=${escape(searchInput)}`,
       method: 'GET',
     };
 

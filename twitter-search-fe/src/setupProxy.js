@@ -5,7 +5,7 @@ module.exports = function (app) {
         proxy('/api/**', {
             changeOrigin: true,
             logLevel: 'debug',
-            target: 'http://localhost:3002/'
+            target: 'http://localhost:3001/'
         })
     )
 };

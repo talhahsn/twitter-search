@@ -1,12 +1,14 @@
 const express = require('express');
 const axios = require('axios');
 const qs = require('query-string');
+const cors = require('cors');
 
 
-const PORT = process.env.PORT || 3002;
+const PORT = process.env.PORT || 3001;
 
 const server = express();
 
+server.use(cors());
 
 server.get('/api/accessToken', (req, res) => {
     const options = {
